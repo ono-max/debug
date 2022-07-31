@@ -441,6 +441,10 @@ module DEBUGGER__
       send_response(req, **res)
     end
 
+    def fire_event event, result
+      send_event event, **result
+    end
+
     def puts result
       # STDERR.puts "puts: #{result}"
       # send_event 'output', category: 'stderr', output: "PUTS!!: " + result.to_s
@@ -663,6 +667,8 @@ module DEBUGGER__
         end
       when :completions
         @ui.respond req, result
+      when :visualize
+        @ui.fire_event 'visualizeRequested', result
       else
         raise "unsupported: #{args.inspect}"
       end
@@ -873,6 +879,11 @@ module DEBUGGER__
         end
 
         event! :dap_result, :evaluate, req, message: message, tid: self.id, **evaluate_result(result)
+        if context == 'repl' && result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
+          recs = []
+          result.each{|rec| recs << rec.attributes}
+          event! :dap_result, :visualize, req, value: recs
+        end
 
       when :completions
         fid, text = args
