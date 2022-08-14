@@ -7,7 +7,7 @@ require 'fileutils'
 
 module DEBUGGER__
   module UI_DAP
-    SHOW_PROTOCOL = ENV['DEBUG_DAP_SHOW_PROTOCOL'] == '1' || ENV['RUBY_DEBUG_DAP_SHOW_PROTOCOL'] == '1'
+    SHOW_PROTOCOL = true
 
     def self.setup debug_port
       if File.directory? '.vscode'
@@ -419,6 +419,10 @@ module DEBUGGER__
             }
           }
 
+        when 'getVisObjects',
+             'evaluateVisObjects'
+          @q_msg << req
+
         when 'stackTrace',
              'scopes',
              'variables',
@@ -615,6 +619,38 @@ module DEBUGGER__
         else
           fail_response req
         end
+
+      when 'evaluateVisObjects'
+        frame_id = req.dig('arguments', 'frameId')
+        context = req.dig('arguments', 'context')
+
+        if @frame_map[frame_id]
+          tid, fid = @frame_map[frame_id]
+          if tc = find_waiting_tc(tid)
+            tc << [:dap, :evaluateVisObjects, req, fid]
+          else
+            fail_response req
+          end
+        else
+          fail_response req, result: "can't evaluate"
+        end
+
+      when 'getVisObjects'
+        varid = req.dig('arguments', 'variablesReference')
+        if ref = @var_map[varid]
+          if ref[0] == :variable
+            tid, vid = ref[1], ref[2]
+            if tc = find_waiting_tc(tid)
+              tc << [:dap, :getVisObjects, req, vid]
+            else
+              fail_response req
+            end
+          else
+            fail_response req
+          end
+        else
+          fail_response req
+        end
       else
         raise "Unknown DAP request: #{req.inspect}"
       end
@@ -661,14 +697,33 @@ module DEBUGGER__
         if message
           @ui.respond req, success: false, message: message
         else
+          visualize = result.delete :visualize
+          tid = result.delete :tid
+          register_var result, tid
+          @ui.respond req, result
+          if visualize
+            vid = result[:variablesReference]
+            @ui.fire_event 'output', output: "vscode://KoichiSasada.vscode-rdbg?variablesReference=#{vid}", category: 'console'
+          end
+        end
+      when :completions
+        @ui.respond req, result
+      when :evaluateVisObjects
+        message = result.delete :message
+        if message
+          @ui.respond req, success: false, message: message
+        else
           tid = result.delete :tid
           register_var result, tid
           @ui.respond req, result
         end
-      when :completions
-        @ui.respond req, result
-      when :visualize
-        @ui.fire_event 'visualizeRequested', result
+      when :getVisObjects
+        message = result.delete :message
+        if message
+          @ui.respond req, success: false, message: message
+        else
+          @ui.respond req, result
+        end
       else
         raise "unsupported: #{args.inspect}"
       end
@@ -824,6 +879,7 @@ module DEBUGGER__
         fid, expr, context = args
         frame = get_frame(fid)
         message = nil
+        can_visualize = false
 
         if frame && (b = frame.eval_binding)
           special_local_variables frame do |name, var|
@@ -836,6 +892,10 @@ module DEBUGGER__
               result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
             rescue Exception => e
               result = e
+            end
+
+            if result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
+              can_visualize = true
             end
 
           when 'hover'
@@ -878,12 +938,7 @@ module DEBUGGER__
           result = 'Error: Can not evaluate on this frame'
         end
 
-        event! :dap_result, :evaluate, req, message: message, tid: self.id, **evaluate_result(result)
-        if context == 'repl' && result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
-          recs = []
-          result.each{|rec| recs << rec.attributes}
-          event! :dap_result, :visualize, req, value: recs
-        end
+        event! :dap_result, :evaluate, req, message: message, tid: self.id, **evaluate_result(result), visualize: can_visualize
 
       when :completions
         fid, text = args
@@ -915,6 +970,54 @@ module DEBUGGER__
           }
         }
 
+      when :evaluateVisObjects
+        fid = args.shift
+        expr = req.dig('arguments', 'expression')
+        page_size = req.dig('arguments', 'pageSize')
+        objs = []
+        len = 0
+        vid = 0
+        result = nil
+        frame = get_frame(fid)
+
+        if frame && (b = frame.eval_binding)
+          begin
+            result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
+          rescue Exception => e
+            result = e
+          end
+        end
+
+        if result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
+          ary = result.to_a
+          ary[0, page_size].each{|elem| objs << elem.attributes}
+          len = ary.size
+          vid = @var_map.size + 1
+          @var_map[vid] = result
+        else
+          message = 'Error: Can not evaluate on this frame'
+        end
+
+        event! :dap_result, :evaluateVisObjects, req, message: message, objects: objs, totalLength: len, variablesReference: vid, tid: self.id
+
+      when :getVisObjects
+        vid = args.shift
+        offset = req.dig('arguments', 'offset')
+        page_size = req.dig('arguments', 'pageSize')
+        message = nil
+        objs = []
+        var = @var_map[vid]
+        len = 0
+
+        if !var.nil? && var.respond_to?(:to_a)
+          ary = var.to_a
+          ary[offset, page_size].each{|elem| objs << elem.attributes}
+          len = ary.size
+        else
+          message = "Error: can not find the appropriate object from the specified variablesReference"
+        end
+
+        event! :dap_result, :getVisObjects, req, message: message, objects: objs, totalLength: len
       else
         raise "Unknown req: #{args.inspect}"
       end
