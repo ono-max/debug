@@ -254,16 +254,16 @@ module DEBUGGER__
         when :breakpoint
           bp, i = bp_index ev_args[1]
           clean_bps unless bp
-          @ui.event :suspend_bp, i, bp, @tc.id
+          @ui.event :suspend_bp, i, bp, @tc.id, @tc.recorder
         when :trap
-          @ui.event :suspend_trap, sig = ev_args[1], @tc.id
+          @ui.event :suspend_trap, sig = ev_args[1], @tc.id, @tc.recorder
 
           if sig == :SIGINT && (@intercepted_sigint_cmd.kind_of?(Proc) || @intercepted_sigint_cmd.kind_of?(String))
             @ui.puts "#{@intercepted_sigint_cmd.inspect} is registered as SIGINT handler."
             @ui.puts "`sigint` command execute it."
           end
         else
-          @ui.event :suspended, @tc.id
+          @ui.event :suspended, @tc.id, @tc.recorder
         end
 
         if @displays.empty?
@@ -1056,12 +1056,14 @@ module DEBUGGER__
         else
           leave_subsession [:step, type, arg&.to_i]
         end
-      when /\Aback\z/, /\Areset\z/
+      when /\A(back)\z/, /\A(reset)\z/, /\A(back)\s(\d+)\z/
         if type != :in
           @ui.puts "only `step #{arg}` is supported."
           :retry
         else
-          request_tc [:step, arg.to_sym]
+          type = $1.to_sym
+          iter = $2.to_i unless $2.nil?
+          request_tc [:step, type, iter]
         end
       else
         @ui.puts "Unknown option: #{arg}"

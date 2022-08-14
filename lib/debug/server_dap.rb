@@ -422,6 +422,20 @@ module DEBUGGER__
         when 'getVisObjects',
              'evaluateVisObjects'
           @q_msg << req
+        when 'goBackTo'
+          n = req.dig('arguments', 'times')
+          @q_msg << "step back #{n}"
+          send_response req
+        when 'goTo'
+          n = req.dig('arguments', 'times')
+          @q_msg << "s #{n}"
+          send_response req
+        when 'startRecord'
+          @q_msg << 'record on'
+          send_response req
+        when 'stopRecord'
+          @q_msg << 'record off'
+          send_response req
 
         when 'stackTrace',
              'scopes',
@@ -467,7 +481,7 @@ module DEBUGGER__
                      }
         end
       when :suspend_bp
-        _i, bp, tid = *args
+        _i, bp, tid, rec = *args
         if bp.kind_of?(CatchBreakpoint)
           reason = 'exception'
           text = bp.description
@@ -475,22 +489,76 @@ module DEBUGGER__
           reason = 'breakpoint'
           text = bp ? bp.description : 'temporary bp'
         end
-
+        send_records rec
         send_event 'stopped', reason: reason,
                               description: text,
                               text: text,
                               threadId: tid,
                               allThreadsStopped: true
       when :suspend_trap
-        _sig, tid = *args
+        _sig, tid, rec = *args
+        send_records rec
         send_event 'stopped', reason: 'pause',
                               threadId: tid,
                               allThreadsStopped: true
       when :suspended
-        tid, = *args
+        tid, rec = *args
+        send_records rec
         send_event 'stopped', reason: 'step',
                               threadId: tid,
                               allThreadsStopped: true
+      end
+    end
+
+    MAXIMUM_RECORD_SIZE = 150
+
+    def send_records recorder
+      unless recorder.nil?
+        cmplt_rec = []
+        prev_rec = {}
+        cursor = 0
+        rec_idx = 0
+        log_index = recorder.log_index
+        recorder.log.each_with_index{|frame, idx|
+          crt_frame = frame[0]
+          if crt_frame.name == prev_rec[:name]
+            loc = {name: crt_frame.location_str}
+            loc[:current] = idx == log_index
+            prev_rec[:locations] << loc
+          else
+            unless prev_rec.empty?
+              prev_rec[:begin_cursor] = cursor
+              cursor += prev_rec[:locations].size
+              prev_rec[:index] = rec_idx
+              rec_idx += 1
+              cmplt_rec << prev_rec.dup
+            end
+            loc = {name: crt_frame.location_str}
+            loc[:current] = idx == log_index
+            prev_rec[:locations] = [loc]
+            prev_rec[:name] = crt_frame.name
+            prev_rec[:frame_depth] = crt_frame.frame_depth
+            prev_rec[:args] = crt_frame.get_args
+          end
+        }
+        unless prev_rec.empty?
+          prev_rec[:begin_cursor] = cursor
+          cursor += prev_rec[:locations].size
+          prev_rec[:index] = rec_idx
+          rec_idx += 1
+          cmplt_rec << prev_rec.dup
+        end
+        start = 0
+        loop{
+          partial_rec = cmplt_rec[start, MAXIMUM_RECORD_SIZE] || []
+          if partial_rec.size < MAXIMUM_RECORD_SIZE
+            send_event 'recordsUpdated', records: partial_rec, log_index: recorder.log_index, fin: true
+            break
+          end
+
+          send_event 'recordsUpdated', records: partial_rec, fin: false
+          start += MAXIMUM_RECORD_SIZE
+        }
       end
     end
   end

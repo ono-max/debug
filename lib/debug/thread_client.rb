@@ -831,8 +831,9 @@ module DEBUGGER__
 
           case step_type
           when :in
-            if @recorder&.replaying?
-              @recorder.step_forward
+            iter = iter || 1
+            if @recorder&.replaying? iter - 1
+              @recorder.step_forward iter
               raise SuspendReplay
             else
               step_tp iter do
@@ -880,11 +881,12 @@ module DEBUGGER__
             break
 
           when :back
-            if @recorder&.can_step_back?
+            iter = iter || 1
+            if @recorder&.can_step_back? iter - 1
               unless @recorder.backup_frames
                 @recorder.backup_frames = @target_frames
               end
-              @recorder.step_back
+              @recorder.step_back iter
               raise SuspendReplay
             else
               puts "Can not step back more."
@@ -1187,12 +1189,12 @@ module DEBUGGER__
         @tp_recorder.enabled?
       end
 
-      def step_back
-        @index += 1
+      def step_back iter
+        @index += iter
       end
 
-      def step_forward
-        @index -= 1
+      def step_forward iter
+        @index -= iter
       end
 
       def step_reset
@@ -1200,12 +1202,12 @@ module DEBUGGER__
         @backup_frames = nil
       end
 
-      def replaying?
-        @index > 0
+      def replaying? iter=0
+        @index - iter > 0
       end
 
-      def can_step_back?
-        log.size > @index
+      def can_step_back? iter=0
+        log.size > @index + iter
       end
 
       def log_index

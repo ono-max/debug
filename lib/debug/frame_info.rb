@@ -64,6 +64,17 @@ module DEBUGGER__
       end
     end
 
+    def get_args
+      case frame_type
+      when :block
+        parameters_info
+      when :method
+        parameters_info
+      else
+        nil
+      end
+    end
+
     def file_lines
       SESSION.source(self.iseq)
     end
