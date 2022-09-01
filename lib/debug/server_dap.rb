@@ -552,7 +552,7 @@ module DEBUGGER__
         loop{
           partial_rec = cmplt_rec[start, MAXIMUM_RECORD_SIZE] || []
           if partial_rec.size < MAXIMUM_RECORD_SIZE
-            send_event 'recordsUpdated', records: partial_rec, log_index: recorder.log_index, fin: true
+            send_event 'recordsUpdated', records: partial_rec, logIndex: recorder.log_index, fin: true
             break
           end
 
@@ -955,15 +955,22 @@ module DEBUGGER__
           end
 
           case context
-          when 'repl', 'watch'
+          when 'repl'
             begin
               result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
             rescue Exception => e
               result = e
             end
 
-            if result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
+            if result.respond_to? :to_obj_inspector
               can_visualize = true
+            end
+
+          when 'watch'
+            begin
+              result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
+            rescue Exception => e
+              result = e
             end
 
           when 'hover'
@@ -1041,7 +1048,7 @@ module DEBUGGER__
       when :evaluateVisObjects
         fid = args.shift
         expr = req.dig('arguments', 'expression')
-        page_size = req.dig('arguments', 'pageSize')
+        kws = req.dig('arguments', 'keywords')
         objs = []
         len = 0
         vid = 0
@@ -1056,36 +1063,30 @@ module DEBUGGER__
           end
         end
 
-        if result.respond_to?('const_defined?') && result.const_defined?('ApplicationRecord')
-          ary = result.to_a
-          ary[0, page_size].each{|elem| objs << elem.attributes}
-          len = ary.size
+        if result.respond_to? :to_obj_inspector
           vid = @var_map.size + 1
           @var_map[vid] = result
+          objs = result.to_obj_inspector kws
         else
           message = 'Error: Can not evaluate on this frame'
         end
 
-        event! :dap_result, :evaluateVisObjects, req, message: message, objects: objs, totalLength: len, variablesReference: vid, tid: self.id
+        event! :dap_result, :evaluateVisObjects, req, message: message, objects: objs, variablesReference: vid, tid: self.id
 
       when :getVisObjects
         vid = args.shift
-        offset = req.dig('arguments', 'offset')
-        page_size = req.dig('arguments', 'pageSize')
+        kws = req.dig('arguments', 'keywords')
         message = nil
         objs = []
         var = @var_map[vid]
-        len = 0
 
-        if !var.nil? && var.respond_to?(:to_a)
-          ary = var.to_a
-          ary[offset, page_size].each{|elem| objs << elem.attributes}
-          len = ary.size
+        if !var.nil? && var.respond_to?(:to_obj_inspector)
+          objs = var.to_obj_inspector kws
         else
           message = "Error: can not find the appropriate object from the specified variablesReference"
         end
 
-        event! :dap_result, :getVisObjects, req, message: message, objects: objs, totalLength: len
+        event! :dap_result, :getVisObjects, req, message: message, objects: objs
       else
         raise "Unknown req: #{args.inspect}"
       end
