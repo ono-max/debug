@@ -1063,6 +1063,7 @@ module DEBUGGER__
           end
         end
 
+        objs = result
         if result.respond_to? :to_obj_inspector
           vid = @var_map.size + 1
           @var_map[vid] = result
@@ -1071,7 +1072,7 @@ module DEBUGGER__
           message = 'Error: Can not evaluate on this frame'
         end
 
-        event! :dap_result, :evaluateVisObjects, req, message: message, objects: objs, variablesReference: vid, tid: self.id
+        event! :dap_result, :evaluateVisObjects, req, message: message, data: objs, variablesReference: vid, tid: self.id
 
       when :getVisObjects
         vid = args.shift
@@ -1086,7 +1087,7 @@ module DEBUGGER__
           message = "Error: can not find the appropriate object from the specified variablesReference"
         end
 
-        event! :dap_result, :getVisObjects, req, message: message, objects: objs
+        event! :dap_result, :getVisObjects, req, message: message, data: objs
       else
         raise "Unknown req: #{args.inspect}"
       end
