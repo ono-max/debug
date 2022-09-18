@@ -436,6 +436,8 @@ module DEBUGGER__
         when 'stopRecord'
           @q_msg << 'record off'
           send_response req
+        when 'getExecLogs'
+          @q_msg << req
 
         when 'stackTrace',
              'scopes',
@@ -489,7 +491,7 @@ module DEBUGGER__
           reason = 'breakpoint'
           text = bp ? bp.description : 'temporary bp'
         end
-        send_records rec
+        send_records tid, rec
         send_event 'stopped', reason: reason,
                               description: text,
                               text: text,
@@ -497,13 +499,13 @@ module DEBUGGER__
                               allThreadsStopped: true
       when :suspend_trap
         _sig, tid, rec = *args
-        send_records rec
+        send_records tid, rec
         send_event 'stopped', reason: 'pause',
                               threadId: tid,
                               allThreadsStopped: true
       when :suspended
         tid, rec = *args
-        send_records rec
+        send_records tid, rec
         send_event 'stopped', reason: 'step',
                               threadId: tid,
                               allThreadsStopped: true
@@ -512,54 +514,10 @@ module DEBUGGER__
 
     MAXIMUM_RECORD_SIZE = 150
 
-    def send_records recorder
-      unless recorder.nil?
-        cmplt_rec = []
-        prev_rec = {}
-        cursor = 0
-        rec_idx = 0
-        log_index = recorder.log_index
-        recorder.log.each_with_index{|frame, idx|
-          crt_frame = frame[0]
-          if crt_frame.name == prev_rec[:name]
-            loc = {name: crt_frame.location_str}
-            loc[:current] = idx == log_index
-            prev_rec[:locations] << loc
-          else
-            unless prev_rec.empty?
-              prev_rec[:begin_cursor] = cursor
-              cursor += prev_rec[:locations].size
-              prev_rec[:index] = rec_idx
-              rec_idx += 1
-              cmplt_rec << prev_rec.dup
-            end
-            loc = {name: crt_frame.location_str}
-            loc[:current] = idx == log_index
-            prev_rec[:locations] = [loc]
-            prev_rec[:name] = crt_frame.name
-            prev_rec[:frame_depth] = crt_frame.frame_depth
-            prev_rec[:args] = crt_frame.get_args
-          end
-        }
-        unless prev_rec.empty?
-          prev_rec[:begin_cursor] = cursor
-          cursor += prev_rec[:locations].size
-          prev_rec[:index] = rec_idx
-          rec_idx += 1
-          cmplt_rec << prev_rec.dup
-        end
-        start = 0
-        loop{
-          partial_rec = cmplt_rec[start, MAXIMUM_RECORD_SIZE] || []
-          if partial_rec.size < MAXIMUM_RECORD_SIZE
-            send_event 'recordsUpdated', records: partial_rec, logIndex: recorder.log_index, fin: true
-            break
-          end
+    def send_records tid, recorder
+      return if recorder.nil?
 
-          send_event 'recordsUpdated', records: partial_rec, fin: false
-          start += MAXIMUM_RECORD_SIZE
-        }
-      end
+      send_event 'execLogsUpdated', threadId: tid
     end
   end
 
@@ -719,6 +677,14 @@ module DEBUGGER__
         else
           fail_response req
         end
+
+      when 'getExecLogs'
+        tid = req.dig('arguments', 'threadId')
+        if tc = find_waiting_tc(tid)
+          tc << [:dap, :getExecLogs, req]
+        else
+          fail_response req
+        end
       else
         raise "Unknown DAP request: #{req.inspect}"
       end
@@ -786,6 +752,13 @@ module DEBUGGER__
           @ui.respond req, result
         end
       when :getVisObjects
+        message = result.delete :message
+        if message
+          @ui.respond req, success: false, message: message
+        else
+          @ui.respond req, result
+        end
+      when :getExecLogs
         message = result.delete :message
         if message
           @ui.respond req, success: false, message: message
@@ -1088,6 +1061,42 @@ module DEBUGGER__
         end
 
         event! :dap_result, :getVisObjects, req, message: message, data: objs
+
+      when :getExecLogs
+        offset = req.dig('arguments', 'offset')
+        size = req.dig('arguments', 'pageSize')
+
+        message = nil
+        log_index = 0
+        cmplt_rec = []
+        len = 0
+        if @recorder.nil?
+          message = "Error: can not find the execution logs from the specified thread"
+        else
+          prev_rec = {}
+          log_index = @recorder.log_index
+          @recorder.log.each_with_index{|frame, idx|
+            crt_frame = frame[0]
+            if crt_frame.name == prev_rec[:name]
+              loc = {name: crt_frame.location_str, index: idx}
+              prev_rec[:locations] << loc
+            else
+              unless prev_rec.empty?
+                cmplt_rec << prev_rec.dup
+              end
+              loc = {name: crt_frame.location_str, index: idx}
+              prev_rec[:locations] = [loc]
+              prev_rec[:name] = crt_frame.name
+              prev_rec[:depth] = crt_frame.frame_depth
+              prev_rec[:args] = crt_frame.get_args
+            end
+          }
+          unless prev_rec.empty?
+            cmplt_rec << prev_rec.dup
+          end
+        end
+
+        event! :dap_result, :getExecLogs, req, logs: cmplt_rec[offset, size], totalLength: cmplt_rec.size, currentLogIndex: log_index, message: message
       else
         raise "Unknown req: #{args.inspect}"
       end
