@@ -1037,15 +1037,15 @@ module DEBUGGER__
         end
 
         objs = result
+        called = false
         if result.respond_to? :to_obj_inspector
           vid = @var_map.size + 1
           @var_map[vid] = result
           objs = result.to_obj_inspector kws
-        else
-          message = 'Error: Can not evaluate on this frame'
+          called = true
         end
 
-        event! :dap_result, :evaluateVisObjects, req, message: message, data: objs, variablesReference: vid, tid: self.id
+        event! :dap_result, :evaluateVisObjects, req, message: message, data: objs, variablesReference: vid, tid: self.id, toObjInspectorCalled: called
 
       when :getVisObjects
         vid = args.shift
