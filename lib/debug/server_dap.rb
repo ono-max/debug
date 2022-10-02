@@ -428,8 +428,8 @@ module DEBUGGER__
           @q_msg << req
 
         ## Object Inspector
-        when 'getVisObjects',
-             'evaluateVisObjects'
+        when 'customVariable',
+             'customEvaluate'
         @q_msg << req
 
         ## History Inspector
@@ -649,14 +649,14 @@ module DEBUGGER__
           fail_response req
         end
 
-      when 'evaluateVisObjects'
+      when 'customEvaluate'
         frame_id = req.dig('arguments', 'frameId')
         context = req.dig('arguments', 'context')
 
         if @frame_map[frame_id]
           tid, fid = @frame_map[frame_id]
           if tc = find_waiting_tc(tid)
-            tc << [:dap, :evaluateVisObjects, req, fid]
+            tc << [:dap, :customEvaluate, req, fid]
           else
             fail_response req
           end
@@ -664,13 +664,13 @@ module DEBUGGER__
           fail_response req, result: "can't evaluate"
         end
 
-      when 'getVisObjects'
+      when 'customVariable'
         varid = req.dig('arguments', 'variablesReference')
         if ref = @var_map[varid]
           if ref[0] == :variable
             tid, vid = ref[1], ref[2]
             if tc = find_waiting_tc(tid)
-              tc << [:dap, :getVisObjects, req, vid]
+              tc << [:dap, :customVariable, req, vid]
             else
               fail_response req
             end
@@ -745,7 +745,7 @@ module DEBUGGER__
         end
       when :completions
         @ui.respond req, result
-      when :evaluateVisObjects
+      when :customEvaluate
         message = result.delete :message
         if message
           @ui.respond req, success: false, message: message
@@ -754,7 +754,7 @@ module DEBUGGER__
           register_var result, tid
           @ui.respond req, result
         end
-      when :getVisObjects
+      when :customVariable
         message = result.delete :message
         if message
           @ui.respond req, success: false, message: message
@@ -1022,7 +1022,7 @@ module DEBUGGER__
         }
 
       # Object Inspector
-      when :evaluateVisObjects
+      when :customEvaluate
         fid = args.shift
         expr = req.dig('arguments', 'expression')
         kws = req.dig('arguments', 'keywords')
@@ -1050,9 +1050,9 @@ module DEBUGGER__
           metadata[:variablesReference] = vid
         end
 
-        event! :dap_result, :evaluateVisObjects, req, message: message, data: data, metadata: metadata
+        event! :dap_result, :customEvaluate, req, message: message, data: data, metadata: metadata
 
-      when :getVisObjects
+      when :customVariable
         vid = args.shift
         kws = req.dig('arguments', 'keywords')
         message = nil
@@ -1066,7 +1066,7 @@ module DEBUGGER__
           message = "Error: can not find the appropriate object from the specified variablesReference"
         end
 
-        event! :dap_result, :getVisObjects, req, message: message, data: data, metadata: metadata
+        event! :dap_result, :customVariable, req, message: message, data: data, metadata: metadata
 
       # History Inspector
       when :getExecLogs
