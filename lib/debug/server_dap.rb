@@ -1018,6 +1018,44 @@ module DEBUGGER__
           }
         }
 
+      # History Inspector
+      when :getExecLogs
+        offset = req.dig('arguments', 'offset')
+        size = req.dig('arguments', 'pageSize')
+
+        message = nil
+        log_index = 0
+        cmplt_rec = []
+        len = 0
+        if @recorder.nil?
+          message = "Error: can not find the execution logs from the specified thread"
+        else
+          prev_rec = {}
+          log_index = @recorder.log_index
+          @recorder.log.each_with_index{|frame, idx|
+            crt_frame = frame[0]
+            if crt_frame.name == prev_rec[:name]
+              loc = {name: crt_frame.location_str, index: idx}
+              prev_rec[:locations] << loc
+            else
+              unless prev_rec.empty?
+                cmplt_rec << prev_rec.dup
+              end
+              loc = {name: crt_frame.location_str, index: idx}
+              prev_rec[:locations] = [loc]
+              prev_rec[:name] = crt_frame.name
+              prev_rec[:depth] = crt_frame.frame_depth
+              prev_rec[:args] = crt_frame.get_args
+            end
+          }
+          unless prev_rec.empty?
+            cmplt_rec << prev_rec.dup
+          end
+        end
+
+        event! :dap_result, :getExecLogs, req, logs: cmplt_rec[offset, size], totalLength: cmplt_rec.size, currentLogIndex: log_index, message: message
+
+      # Object Inspector
       when :evaluateVisObjects
         fid = args.shift
         expr = req.dig('arguments', 'expression')
@@ -1061,42 +1099,6 @@ module DEBUGGER__
         end
 
         event! :dap_result, :getVisObjects, req, message: message, data: objs
-
-      when :getExecLogs
-        offset = req.dig('arguments', 'offset')
-        size = req.dig('arguments', 'pageSize')
-
-        message = nil
-        log_index = 0
-        cmplt_rec = []
-        len = 0
-        if @recorder.nil?
-          message = "Error: can not find the execution logs from the specified thread"
-        else
-          prev_rec = {}
-          log_index = @recorder.log_index
-          @recorder.log.each_with_index{|frame, idx|
-            crt_frame = frame[0]
-            if crt_frame.name == prev_rec[:name]
-              loc = {name: crt_frame.location_str, index: idx}
-              prev_rec[:locations] << loc
-            else
-              unless prev_rec.empty?
-                cmplt_rec << prev_rec.dup
-              end
-              loc = {name: crt_frame.location_str, index: idx}
-              prev_rec[:locations] = [loc]
-              prev_rec[:name] = crt_frame.name
-              prev_rec[:depth] = crt_frame.frame_depth
-              prev_rec[:args] = crt_frame.get_args
-            end
-          }
-          unless prev_rec.empty?
-            cmplt_rec << prev_rec.dup
-          end
-        end
-
-        event! :dap_result, :getExecLogs, req, logs: cmplt_rec[offset, size], totalLength: cmplt_rec.size, currentLogIndex: log_index, message: message
       else
         raise "Unknown req: #{args.inspect}"
       end
