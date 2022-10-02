@@ -429,7 +429,7 @@ module DEBUGGER__
 
         ## Object Inspector
         when 'getVisObjects',
-          'evaluateVisObjects'
+             'evaluateVisObjects'
         @q_msg << req
 
         ## History Inspector
