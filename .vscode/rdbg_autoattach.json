@@ -1,9 +1,0 @@
-{
-  "type": "rdbg",
-  "name": "Attach with rdbg",
-  "request": "attach",
-  "rdbgPath": "/Users/s15236/workspace/debug/exe/rdbg",
-  "debugPort": "/var/folders/5j/z2c9zm7124q81f_py4xmd3scp7w9j7/T/ruby-debug-sock-746464807/ruby-debug-s15236-28801",
-  "localfs": true,
-  "autoAttach": "0.7338989651176946"
-}
