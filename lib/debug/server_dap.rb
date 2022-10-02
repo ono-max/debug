@@ -938,7 +938,7 @@ module DEBUGGER__
               result = e
             end
 
-            if result.respond_to? :to_obj_inspector
+            if result.respond_to? :to_rdbg_mimebundle
               can_visualize = true
             end
 
@@ -1026,7 +1026,8 @@ module DEBUGGER__
         fid = args.shift
         expr = req.dig('arguments', 'expression')
         kws = req.dig('arguments', 'keywords')
-        objs = []
+        data = {}
+        metadata = {}
         len = 0
         vid = 0
         result = nil
@@ -1040,31 +1041,32 @@ module DEBUGGER__
           end
         end
 
-        objs = result
-        called = false
-        if result.respond_to? :to_obj_inspector
+        data = result
+        if result.respond_to? :to_rdbg_mimebundle
           vid = @var_map.size + 1
           @var_map[vid] = result
-          objs = result.to_obj_inspector kws
-          called = true
+          data = result.to_rdbg_mimebundle kws
+          metadata[:tid] = self.id
+          metadata[:variablesReference] = vid
         end
 
-        event! :dap_result, :evaluateVisObjects, req, message: message, data: objs, variablesReference: vid, tid: self.id, toObjInspectorCalled: called
+        event! :dap_result, :evaluateVisObjects, req, message: message, data: data, metadata: metadata
 
       when :getVisObjects
         vid = args.shift
         kws = req.dig('arguments', 'keywords')
         message = nil
-        objs = []
+        data = {}
+        metadata = {}
         var = @var_map[vid]
 
-        if !var.nil? && var.respond_to?(:to_obj_inspector)
-          objs = var.to_obj_inspector kws
+        if !var.nil? && var.respond_to?(:to_rdbg_mimebundle)
+          data = var.to_rdbg_mimebundle kws
         else
           message = "Error: can not find the appropriate object from the specified variablesReference"
         end
 
-        event! :dap_result, :getVisObjects, req, message: message, data: objs
+        event! :dap_result, :getVisObjects, req, message: message, data: data, metadata: metadata
 
       # History Inspector
       when :getExecLogs
