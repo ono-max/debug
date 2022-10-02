@@ -419,14 +419,25 @@ module DEBUGGER__
             }
           }
 
-        when 'getVisObjects',
-             'evaluateVisObjects'
+        when 'stackTrace',
+             'scopes',
+             'variables',
+             'evaluate',
+             'source',
+             'completions'
           @q_msg << req
-        when 'goBackTo'
+
+        ## Object Inspector
+        when 'getVisObjects',
+          'evaluateVisObjects'
+        @q_msg << req
+
+        ## History Inspector
+        when 'customStepBack'
           n = req.dig('arguments', 'times')
           @q_msg << "step back #{n}"
           send_response req
-        when 'goTo'
+        when 'customStepIn'
           n = req.dig('arguments', 'times')
           @q_msg << "s #{n}"
           send_response req
@@ -437,14 +448,6 @@ module DEBUGGER__
           @q_msg << 'record off'
           send_response req
         when 'getExecLogs'
-          @q_msg << req
-
-        when 'stackTrace',
-             'scopes',
-             'variables',
-             'evaluate',
-             'source',
-             'completions'
           @q_msg << req
 
         else
@@ -1018,43 +1021,6 @@ module DEBUGGER__
           }
         }
 
-      # History Inspector
-      when :getExecLogs
-        offset = req.dig('arguments', 'offset')
-        size = req.dig('arguments', 'pageSize')
-
-        message = nil
-        log_index = 0
-        cmplt_rec = []
-        len = 0
-        if @recorder.nil?
-          message = "Error: can not find the execution logs from the specified thread"
-        else
-          prev_rec = {}
-          log_index = @recorder.log_index
-          @recorder.log.each_with_index{|frame, idx|
-            crt_frame = frame[0]
-            if crt_frame.name == prev_rec[:name]
-              loc = {name: crt_frame.location_str, index: idx}
-              prev_rec[:locations] << loc
-            else
-              unless prev_rec.empty?
-                cmplt_rec << prev_rec.dup
-              end
-              loc = {name: crt_frame.location_str, index: idx}
-              prev_rec[:locations] = [loc]
-              prev_rec[:name] = crt_frame.name
-              prev_rec[:depth] = crt_frame.frame_depth
-              prev_rec[:args] = crt_frame.get_args
-            end
-          }
-          unless prev_rec.empty?
-            cmplt_rec << prev_rec.dup
-          end
-        end
-
-        event! :dap_result, :getExecLogs, req, logs: cmplt_rec[offset, size], totalLength: cmplt_rec.size, currentLogIndex: log_index, message: message
-
       # Object Inspector
       when :evaluateVisObjects
         fid = args.shift
@@ -1099,6 +1065,43 @@ module DEBUGGER__
         end
 
         event! :dap_result, :getVisObjects, req, message: message, data: objs
+
+      # History Inspector
+      when :getExecLogs
+        offset = req.dig('arguments', 'offset')
+        size = req.dig('arguments', 'pageSize')
+
+        message = nil
+        log_index = 0
+        cmplt_rec = []
+        len = 0
+        if @recorder.nil?
+          message = "Error: can not find the execution logs from the specified thread"
+        else
+          prev_rec = {} # {locations => [], :name => ..., :depth => ..., :args => []}
+          log_index = @recorder.log_index
+          @recorder.log.each_with_index{|frame, idx|
+            crt_frame = frame[0]
+            loc = {name: crt_frame.location_str, index: idx}
+            if crt_frame.name == prev_rec[:name]
+              prev_rec[:locations] << loc
+            else
+              unless prev_rec.empty?
+                cmplt_rec << prev_rec.dup
+                prev_rec.clear
+              end
+              prev_rec[:locations] = [loc]
+              prev_rec[:name] = crt_frame.name
+              prev_rec[:depth] = crt_frame.frame_depth
+              prev_rec[:args] = crt_frame.get_args
+            end
+          }
+          unless prev_rec.empty?
+            cmplt_rec << prev_rec.dup
+          end
+        end
+
+        event! :dap_result, :getExecLogs, req, logs: cmplt_rec[offset, size], totalLength: cmplt_rec.size, currentLogIndex: log_index, message: message
       else
         raise "Unknown req: #{args.inspect}"
       end
