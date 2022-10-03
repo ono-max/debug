@@ -1041,13 +1041,14 @@ module DEBUGGER__
           end
         end
 
-        data = result
         if result.respond_to? :to_rdbg_mimebundle
           vid = @var_map.size + 1
           @var_map[vid] = result
           data = result.to_rdbg_mimebundle kws
           metadata[:tid] = self.id
           metadata[:variablesReference] = vid
+        else
+          data["text/plain"] = value_inspect(result)
         end
 
         event! :dap_result, :customEvaluate, req, message: message, data: data, metadata: metadata
