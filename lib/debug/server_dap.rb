@@ -430,7 +430,7 @@ module DEBUGGER__
         ## Object Inspector
         when 'customVariable',
              'customEvaluate'
-        @q_msg << req
+          @q_msg << req
 
         ## History Inspector
         when 'customStepBack'
@@ -1044,14 +1044,12 @@ module DEBUGGER__
         if result.respond_to? :to_rdbg_mimebundle
           vid = @var_map.size + 1
           @var_map[vid] = result
-          data = result.to_rdbg_mimebundle kws
-          metadata[:tid] = self.id
-          metadata[:variablesReference] = vid
+          data, metadata = result.to_rdbg_mimebundle kws
         else
           data["text/plain"] = value_inspect(result)
         end
 
-        event! :dap_result, :customEvaluate, req, message: message, data: data, metadata: metadata
+        event! :dap_result, :customEvaluate, req, message: message, data: data, metadata: metadata, tid: self.id, variablesReference: vid
 
       when :customVariable
         vid = args.shift
@@ -1062,7 +1060,7 @@ module DEBUGGER__
         var = @var_map[vid]
 
         if !var.nil? && var.respond_to?(:to_rdbg_mimebundle)
-          data = var.to_rdbg_mimebundle kws
+          data, metadata = var.to_rdbg_mimebundle kws
         else
           message = "Error: can not find the appropriate object from the specified variablesReference"
         end
