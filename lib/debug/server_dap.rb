@@ -7,7 +7,7 @@ require 'fileutils'
 
 module DEBUGGER__
   module UI_DAP
-    SHOW_PROTOCOL = true
+    SHOW_PROTOCOL = ENV['DEBUG_DAP_SHOW_PROTOCOL'] == '1' || ENV['RUBY_DEBUG_DAP_SHOW_PROTOCOL'] == '1'
 
     def self.setup debug_port
       if File.directory? '.vscode'
