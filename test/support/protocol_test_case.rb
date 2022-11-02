@@ -411,11 +411,16 @@ module DEBUGGER__
         end
       rescue Detach
       end
-      sleep 0.001 while @reader_thread.status != 'sleep'
+      Timeout.timeout(TIMEOUT_SEC) do
+        sleep 0.001 while @reader_thread.status != 'sleep'
+      end
       @reader_thread.run
       INITIALIZE_CDP_MSGS.each{|msg| send(**msg)}
       res = find_response :method, 'Debugger.paused', 'C<D'
       @crt_frames = res.dig(:params, :callFrames)
+    rescue Timeout::Error
+      $stderr.puts "thread status: #{@reader_thread.status}"
+      raise
     end
 
     JAVASCRIPT_TYPE_TO_CLASS_MAPS = {
