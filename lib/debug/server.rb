@@ -52,10 +52,13 @@ module DEBUGGER__
 
           @accept_m.synchronize{
             @sock = server
+            $stderr.puts :wow1
             greeting
+            $stderr.puts :wow2
             greeting_done = true
 
             @accept_cv.signal
+            $stderr.puts :wow3
 
             # flush unsent messages
             @unsent_messages.each{|m|
@@ -63,6 +66,7 @@ module DEBUGGER__
             } if @repl
             @unsent_messages.clear
 
+            $stderr.puts :wow4
             @q_msg = Queue.new
             @q_ans = Queue.new
           } unless already_connected
