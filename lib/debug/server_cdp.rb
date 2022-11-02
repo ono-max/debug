@@ -277,6 +277,7 @@ module DEBUGGER__
       end
 
       def extract_data
+        $stderr.puts :foobar
         first_group = @sock.getbyte
         fin = first_group & 0b10000000 != 128
         raise 'Unsupported' if fin
