@@ -421,6 +421,7 @@ module DEBUGGER__
     rescue Timeout::Error
       $stderr.puts "thread status: #{@reader_thread.status}"
       p @remote_info.debuggee_backlog.join
+      p @backlog
       raise
     end
 
@@ -497,7 +498,7 @@ module DEBUGGER__
     def send_dap_request command, **kw
       send_request command, **kw
 
-      # TODO: Return the response for "stepBack"
+      # TODO: Return the response for "stepBack
       return if command == "stepBack"
 
       res = find_crt_dap_response
@@ -851,9 +852,9 @@ module DEBUGGER__
     end
 
     def extract_data
+      return nil if @sock.eof?
       first_group = @sock.getbyte
       fin = first_group
-      return nil if fin.nil?
       raise 'Unsupported' if fin & 0b10000000 != 128
       opcode = first_group & 0b00001111
       raise "Unsupported: #{opcode}" unless opcode == 1
