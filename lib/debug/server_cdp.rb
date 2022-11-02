@@ -10,7 +10,7 @@ require 'tmpdir'
 
 module DEBUGGER__
   module UI_CDP
-    SHOW_PROTOCOL = false
+    SHOW_PROTOCOL = true
 
     class << self
       def setup_chrome addr
