@@ -242,6 +242,7 @@ module DEBUGGER__
           @sock.print res
           show_protocol :<, res
         else
+          $stderr.puts :hogehoge
           raise "Unknown request: #{req}"
         end
       end
