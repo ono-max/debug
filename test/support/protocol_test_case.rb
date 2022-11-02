@@ -389,7 +389,7 @@ module DEBUGGER__
       sleep 0.001 while @reader_thread.status != 'sleep'
       @reader_thread.run
       INITIALIZE_DAP_MSGS.each{|msg| send(**msg)}
-    rescue Timeout::Error
+    rescue Exception => e
       $stderr.puts "thread status: #{@reader_thread.status}"
     end
 
@@ -418,7 +418,8 @@ module DEBUGGER__
       INITIALIZE_CDP_MSGS.each{|msg| send(**msg)}
       res = find_response :method, 'Debugger.paused', 'C<D'
       @crt_frames = res.dig(:params, :callFrames)
-    rescue Timeout::Error
+    rescue Exception => e
+      $stderr.puts e
       $stderr.puts "thread status: #{@reader_thread.status}"
       p @remote_info.debuggee_backlog.join
       p @backlog
