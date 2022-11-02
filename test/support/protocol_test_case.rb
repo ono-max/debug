@@ -420,7 +420,7 @@ module DEBUGGER__
       @crt_frames = res.dig(:params, :callFrames)
     rescue Timeout::Error
       $stderr.puts "thread status: #{@reader_thread.status}"
-      $stderr.puts @remote_info.debuggee_backlog.join
+      p @remote_info.debuggee_backlog.join
       raise
     end
 
