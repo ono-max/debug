@@ -236,6 +236,7 @@ module DEBUGGER__
         show_protocol '>', req
 
         if req.match /^Sec-WebSocket-Key: (.*)\r\n/
+          $stderr.puts "key: #{$1}"
           accept = Base64.strict_encode64 Digest::SHA1.digest "#{$1}258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
           res = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: #{accept}\r\n\r\n"
           @sock.print res
