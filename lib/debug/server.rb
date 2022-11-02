@@ -69,6 +69,7 @@ module DEBUGGER__
 
           setup_interrupt do
             pause if !already_connected && @need_pause_at_first
+            $stderr.puts :hogehoge
             process
           end
 
