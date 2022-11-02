@@ -389,6 +389,8 @@ module DEBUGGER__
       sleep 0.001 while @reader_thread.status != 'sleep'
       @reader_thread.run
       INITIALIZE_DAP_MSGS.each{|msg| send(**msg)}
+    rescue Timeout::Error
+      $stderr.puts "thread status: #{@reader_thread.status}"
     end
 
     HOST = '127.0.0.1'
