@@ -241,7 +241,7 @@ module DEBUGGER__
           @sock.print res
           show_protocol :<, res
         else
-          "Unknown request: #{req}"
+          raise "Unknown request: #{req}"
         end
       end
 
