@@ -233,7 +233,7 @@ module DEBUGGER__
 
       def handshake
         req = @sock.readpartial 4096
-        show_protocol '>', req
+        # show_protocol '>', req
 
         if req.match(/^Sec-WebSocket-Key: (.*)\r\n/)
           $stderr.puts "key: #{$1}"
