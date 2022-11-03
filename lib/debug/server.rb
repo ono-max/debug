@@ -87,6 +87,7 @@ module DEBUGGER__
           pp e.backtrace
         ensure
           $stderr.puts @sock.closed?
+          $stderr.puts already_connected
           DEBUGGER__.warn "Disconnected."
           cleanup_reader if greeting_done
         end # accept
