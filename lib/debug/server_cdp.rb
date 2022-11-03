@@ -235,6 +235,7 @@ module DEBUGGER__
         req = @sock.readpartial 4096
         $stderr.puts @sock.closed?
         show_protocol '>', req
+        $stderr.puts @sock.closed?
 
         if req.match(/^Sec-WebSocket-Key: (.*)\r\n/)
           $stdout.puts "key: #{$1}"
