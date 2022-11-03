@@ -55,7 +55,7 @@ module DEBUGGER__
         --------------------
         | Debuggee Session |
         --------------------
-        > #{remote_info.debuggee_backlog.join('> ')}
+        > #{@remote_info.debuggee_backlog.join('> ')}
         TIMEOUT ERROR (#{TIMEOUT_SEC} sec)
       MSG
     end
