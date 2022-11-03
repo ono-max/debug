@@ -86,6 +86,7 @@ module DEBUGGER__
           DEBUGGER__.warn "ReaderThreadError: #{e}"
           pp e.backtrace
         ensure
+          $stderr.puts @sock.closed?
           DEBUGGER__.warn "Disconnected."
           cleanup_reader if greeting_done
         end # accept
