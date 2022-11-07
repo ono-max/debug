@@ -276,9 +276,6 @@ module DEBUGGER__
           UI_DAP.local_fs_map_set req.dig('arguments', 'localfs') || req.dig('arguments', 'localfsMap')
           @nonstop = true
           is_visualize = req.dig('arguments', 'visualize')
-          if is_visualize
-            require_relative '../misc/visualizer'
-          end
 
         when 'attach'
           send_response req
@@ -431,7 +428,10 @@ module DEBUGGER__
           }
 
         when 'evaluate'
-          req['arguments']['visualize'] = is_visualize if is_visualize
+          if is_visualize
+            load('../misc/visualizer.rb')
+            req['arguments']['visualize'] = is_visualize
+          end
           @q_msg << req
 
         when 'stackTrace',

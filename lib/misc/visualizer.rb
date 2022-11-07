@@ -242,47 +242,27 @@ rescue LoadError
 end
 
 module ActiveRecordInspector
-  def to_debug_visualizer_protocol kw
-    ary = self.to_a
-    table_data = ary[kw['offset'], kw['pageSize']].map{|elem| elem.attributes}
-    x_keys = []
-    y_keys = []
-    table_data.first.each{|key, val|
-      if key == 'id' || !val.is_a?(Numeric)
-        x_keys << key
-      else
-        y_keys << key
-      end
-    }
-    [
-      {
-        type: :table,
-        data: table_data,
-        paginate: {
-          totalLen: ary.size
-        }
-      },
-      {
-        type: :barChart,
-          data: table_data,
-          xAxisKeys: x_keys,
-          yAxisKeys: y_keys
-      },
-      {
-        type: :lineChart,
-          data: table_data,
-          xAxisKeys: x_keys,
-          yAxisKeys: y_keys
-      }
-    ]
+  def to_debug_visualizer_protocol
+    $stderr.puts :hogehoge
+    rows = nil
+    if self.respond_to? :to_a
+      ary = self.to_a
+      rows = ary.map{|elem| elem.attributes}
+    else
+      rows = [self.attributes]
+    end
+    
+    JSON.generate({
+        "kind": { "table": true },
+        "rows": rows
+    })
   end
 end
 
 begin
-  require 'active_support'
-  ActiveSupport.on_load(:active_record) do
-    ActiveRecord::Relation.include ActiveRecordInspector
-  end
+  require 'active_record'
+  ActiveRecord::Base.include ActiveRecordInspector
+  ActiveRecord::Relation.include ActiveRecordInspector
 rescue LoadError
 end
 
