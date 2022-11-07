@@ -263,6 +263,7 @@ module DEBUGGER__
     end
 
     def process
+      is_visualize = false
       while req = recv_request
         raise "not a request: #{req.inspect}" unless req['type'] == 'request'
         args = req.dig('arguments')
@@ -274,6 +275,10 @@ module DEBUGGER__
           send_response req
           UI_DAP.local_fs_map_set req.dig('arguments', 'localfs') || req.dig('arguments', 'localfsMap')
           @nonstop = true
+          is_visualize = req.dig('arguments', 'visualize')
+          if is_visualize
+            require_relative '../misc/visualizer'
+          end
 
         when 'attach'
           send_response req
@@ -425,10 +430,13 @@ module DEBUGGER__
             }
           }
 
+        when 'evaluate'
+          req['arguments']['visualize'] = is_visualize if is_visualize
+          @q_msg << req
+
         when 'stackTrace',
              'scopes',
              'variables',
-             'evaluate',
              'source',
              'completions'
           @q_msg << req
@@ -691,9 +699,14 @@ module DEBUGGER__
   end
 
   class ThreadClient
-    def value_inspect obj
+    def value_inspect obj, is_visualize: false
       # TODO: max length should be configuarable?
-      str = DEBUGGER__.safe_inspect obj, short: true, max_length: 4 * 1024
+      str = ''
+      if is_visualize
+        str = DEBUGGER__.safe_inspect obj
+      else
+        str = DEBUGGER__.safe_inspect obj, short: true, max_length: 4 * 1024
+      end
 
       if str.encoding == Encoding::UTF_8
         str.scrub
@@ -832,17 +845,30 @@ module DEBUGGER__
         frame = get_frame(fid)
         message = nil
 
+        is_visualize = req.dig('arguments', 'visualize') || false
+
         if frame && (b = frame.eval_binding)
           special_local_variables frame do |name, var|
             b.local_variable_set(name, var) if /\%/ !~ name
           end
 
           case context
-          when 'repl', 'watch'
+          when 'watch'
             begin
               result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
             rescue Exception => e
               result = e
+            end
+
+          when 'repl'
+            begin
+              result = b.eval(expr.to_s, '(DEBUG CONSOLE)')
+            rescue Exception => e
+              result = e
+            end
+
+            if result.respond_to? :to_debug_visualizer_protocol
+              result = result.send(:to_debug_visualizer_protocol)
             end
 
           when 'hover'
@@ -885,7 +911,7 @@ module DEBUGGER__
           result = 'Error: Can not evaluate on this frame'
         end
 
-        event! :dap_result, :evaluate, req, message: message, tid: self.id, **evaluate_result(result)
+        event! :dap_result, :evaluate, req, message: message, tid: self.id, **evaluate_result(result, is_visualize: is_visualize)
 
       when :completions
         fid, text = args
@@ -939,8 +965,8 @@ module DEBUGGER__
       false
     end
 
-    def evaluate_result r
-      v = variable nil, r
+    def evaluate_result r, is_visualize: false
+      v = variable nil, r, is_visualize: is_visualize
       v.delete :name
       v.delete :value
       v[:result] = value_inspect(r)
@@ -976,14 +1002,18 @@ module DEBUGGER__
       }
     end
 
-    def variable name, obj
+    def variable name, obj, is_visualize: false
       case obj
       when Array
         variable_ name, obj, indexedVariables: obj.size
       when Hash
         variable_ name, obj, namedVariables: obj.size
       when String
-        variable_ name, obj, namedVariables: 3 # #to_str, #length, #encoding
+        if is_visualize
+          variable_ name, obj
+        else
+          variable_ name, obj, namedVariables: 3 # #to_str, #length, #encoding
+        end
       when Struct
         variable_ name, obj, namedVariables: obj.size
       when Class, Module
