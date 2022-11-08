@@ -1,7 +1,7 @@
 require 'json'
 module REXMLInspector
-  def to_debug_visualizer_protocol kw
-    {
+  def to_debug_visualizer_protocol
+    JSON.generate({
       "root": {
           "items": [
               {
@@ -202,7 +202,7 @@ module REXMLInspector
       "kind": {
           "tree": true
       }
-  }
+    })
   end
 
   def get_tree elems
