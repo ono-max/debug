@@ -429,7 +429,7 @@ module DEBUGGER__
 
         when 'evaluate'
           if is_visualize
-            load('../misc/visualizer.rb')
+            load("#{__dir__}../misc/visualizer.rb")
             req['arguments']['visualize'] = is_visualize
           end
           @q_msg << req

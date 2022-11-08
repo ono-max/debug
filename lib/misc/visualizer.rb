@@ -270,13 +270,44 @@ module ArrayInspector
   def to_debug_visualizer_protocol
     if self.all? {|v| v.is_a?(Integer) || v.is_a?(Float) }
       JSON.generate({
-          "kind":{ "plotly": true },
-          "data":[
-              { "y": self },
-          ]
-        })
+        "kind":{ "plotly": true },
+        "data":[
+            { "y": self },
+        ]
+      })
+    else
+      columns = []
+      self.each{|elem|
+        columns << {content: elem.to_s, tag: elem.to_s}
+      }
+      JSON.generate({
+        "kind": { "grid": true },
+        "text": "test",
+        "columnLabels": [
+            {
+                "label": "test"
+            }
+        ],
+        "rows": [
+            {
+                "label": "foo",
+                "columns": columns
+            }
+        ]
+      })
     end
   end
 end
 
 Array.prepend ArrayInspector
+
+module HashInspector
+  def to_debug_visualizer_protocol
+    JSON.generate({
+        "kind": { "table": true },
+        "rows": [self]
+    })
+  end
+end
+  
+Hash.prepend HashInspector  
