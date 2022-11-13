@@ -198,6 +198,7 @@ module DEBUGGER__
     end
 
     def reset_ui ui
+      $stderr.puts "reset ui"
       @ui.deactivate
       @ui = ui
     end
