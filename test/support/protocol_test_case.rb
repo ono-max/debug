@@ -323,6 +323,9 @@ module DEBUGGER__
       scenario.call
 
       flunk create_protocol_message "Expected the debuggee program to finish" unless wait_pid @remote_info.pid, TIMEOUT_SEC
+    rescue Exception => e
+      $stderr.puts @remote_info.debuggee_backlog.join
+      $stderr.puts e.message
     ensure
       @reader_thread&.kill
       @web_sock&.close
