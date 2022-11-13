@@ -97,6 +97,8 @@ module DEBUGGER__
       rescue Terminate
         # ignore
       end
+    ensure
+      $stderr.puts "thread status: #{@reader_thread.status}"
     end
 
     def cleanup_reader
