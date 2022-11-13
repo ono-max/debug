@@ -312,6 +312,8 @@ module DEBUGGER__
         sleep 0.001 until @remote_info.debuggee_backlog.join.include? @remote_info.port.to_s
       end
 
+      sleep 3
+
       @res_backlog = []
       @bps = [] # [b_id, ...]
       @queue = Queue.new
