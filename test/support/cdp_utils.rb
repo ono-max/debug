@@ -64,14 +64,14 @@ module DEBUGGER__
     HOST = '127.0.0.1'
 
     def run_cdp_scenario program, &msgs
-      ENV['RUBY_DEBUG_TEST_UI'] = 'chrome'
+      # ENV['RUBY_DEBUG_TEST_UI'] = 'chrome'
 
-      program = program.delete_suffix "\n"
-      write_temp_file(strip_line_num(program))
+      # program = program.delete_suffix "\n"
+      # write_temp_file(strip_line_num(program))
 
-      setup_chrome_debuggee
-      connect_to_cdp_server
-      exchange_cdp_message msgs
+      # setup_chrome_debuggee
+      # connect_to_cdp_server
+      # exchange_cdp_message msgs
     rescue Detach
     end
 
