@@ -92,6 +92,8 @@ module DEBUGGER__
           cleanup_reader if greeting_done
         end # accept
 
+        $stderr.puts "yay!"
+
       rescue Terminate
         # ignore
       end
