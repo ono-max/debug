@@ -63,8 +63,6 @@ module DEBUGGER__
     end
 
     def initialize argv
-      @skip_all = false
-
       if self.class.config
         raise 'Can not make multiple configurations in one process'
       end
@@ -92,14 +90,6 @@ module DEBUGGER__
 
     def []=(key, val)
       set_config(key => val)
-    end
-
-    def skip_all
-      @skip_all = true
-    end
-
-    def skip?
-      @skip_all
     end
 
     def set_config(**kw)
@@ -479,10 +469,14 @@ module DEBUGGER__
       when /\A\s*### (.+)/
         cat = $1
         break if $1 == 'END'
-      when /\A      when (.+)/
+      when /\A      register_command (.+)/
         next unless cat
         next unless desc
-        ws = $1.split(/,\s*/).map{|e| e.gsub('\'', '')}
+
+        ws = []
+        $1.gsub(/'([a-z]+)'/){|w|
+          ws << $1
+        }
         helps[cat] << [ws, desc]
         desc = nil
         max_w = ws.max_by{|w| w.length}

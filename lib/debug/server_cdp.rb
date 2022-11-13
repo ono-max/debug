@@ -94,7 +94,7 @@ module DEBUGGER__
         stderr.close
 
         at_exit{
-          CONFIG.skip_all
+          DEBUGGER__.skip_all
           FileUtils.rm_rf dir
         }
 
@@ -1056,19 +1056,23 @@ module DEBUGGER__
     end
 
     def preview_ value, hash, overflow
+      # The reason for not using "map" method is to prevent the object overriding it from causing bugs.
+      # https://github.com/ruby/debug/issues/781
+      props = []
+      hash.each{|k, v|
+        pd = propertyDescriptor k, v
+        props << {
+          name: pd[:name],
+          type: pd[:value][:type],
+          value: pd[:value][:description]
+        }
+      }
       {
         type: value[:type],
         subtype: value[:subtype],
         description: value[:description],
         overflow: overflow,
-        properties: hash.map{|k, v|
-          pd = propertyDescriptor k, v
-          {
-            name: pd[:name],
-            type: pd[:value][:type],
-            value: pd[:value][:description]
-          }
-        }
+        properties: props
       }
     end
 

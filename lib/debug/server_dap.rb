@@ -18,7 +18,7 @@ module DEBUGGER__
       end
 
       at_exit do
-        CONFIG.skip_all
+        DEBUGGER__.skip_all
         FileUtils.rm_rf dir if tempdir
       end
 
@@ -273,17 +273,22 @@ module DEBUGGER__
         when 'launch'
           send_response req
           UI_DAP.local_fs_map_set req.dig('arguments', 'localfs') || req.dig('arguments', 'localfsMap')
-          @is_launch = true
+          @nonstop = true
 
         when 'attach'
           send_response req
           UI_DAP.local_fs_map_set req.dig('arguments', 'localfs') || req.dig('arguments', 'localfsMap')
-          @is_launch = false
+
+          if req.dig('arguments', 'nonstop') == true
+            @nonstop = true
+          else
+            @nonstop = false
+          end
 
         when 'configurationDone'
           send_response req
 
-          if @is_launch
+          if @nonstop
             @q_msg << 'continue'
           else
             if SESSION.in_subsession?
@@ -942,6 +947,16 @@ module DEBUGGER__
       v
     end
 
+    def type_name obj
+      klass = M_CLASS.bind_call(obj)
+
+      begin
+        klass.name || klass.to_s
+      rescue Exception => e
+        "<Error: #{e.message} (#{e.backtrace.first}>"
+      end
+    end
+
     def variable_ name, obj, indexedVariables: 0, namedVariables: 0
       if indexedVariables > 0 || namedVariables > 0
         vid = @var_map.size + 1
@@ -954,7 +969,7 @@ module DEBUGGER__
 
       { name: name,
         value: value_inspect(obj),
-        type: (klass = M_CLASS.bind_call(obj)).name || klass.to_s,
+        type: type_name(obj),
         variablesReference: vid,
         indexedVariables: indexedVariables,
         namedVariables: namedVariables + ivnum,
