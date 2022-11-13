@@ -93,6 +93,7 @@ module DEBUGGER__
         end # accept
 
         $stderr.puts "yay!"
+        $stderr.puts "thread status: #{@reader_thread.status}"
 
       rescue Terminate
         # ignore
