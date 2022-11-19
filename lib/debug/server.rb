@@ -23,6 +23,7 @@ module DEBUGGER__
     class GreetingError < StandardError; end
 
     def deactivate
+      $stderr.puts caller
       @reader_thread.raise Terminate
       @reader_thread.join
     end
