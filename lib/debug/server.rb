@@ -278,6 +278,7 @@ module DEBUGGER__
     class NoRemoteError < Exception; end
 
     def sock skip: false
+      $stderr.puts caller
       if s = @sock         # already connection
         # ok
       elsif skip == true   # skip process
