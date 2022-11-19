@@ -286,8 +286,10 @@ module DEBUGGER__
         end
 
         if @displays.empty?
+          $stderr.puts :wait_command_loop
           wait_command_loop
         else
+          $stderr.puts :wait_command_loop2
           request_tc [:eval, :display, @displays]
         end
       when :result
