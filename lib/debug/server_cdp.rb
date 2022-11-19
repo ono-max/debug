@@ -628,11 +628,11 @@ module DEBUGGER__
 
     ## Called by the SESSION thread
 
-    def readline prompt
-      return 'c' unless @q_msg
+    # def readline prompt
+    #   return 'c' unless @q_msg
 
-      @q_msg.pop || 'kill!'
-    end
+    #   @q_msg.pop || 'kill!'
+    # end
 
     def respond req, **result
       send_response req, **result
@@ -650,9 +650,9 @@ module DEBUGGER__
       end
     end
 
-    def sock skip: false
-      yield $stderr
-    end
+    # def sock skip: false
+    #   yield $stderr
+    # end
 
     def puts result
       # STDERR.puts "puts: #{result}"
