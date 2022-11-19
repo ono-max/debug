@@ -406,6 +406,7 @@ module DEBUGGER__
       else
         $stderr.puts :preset_command2
         @ui.puts "INTERNAL_INFO: #{JSON.generate(@internal_info)}" if ENV['RUBY_DEBUG_TEST_UI'] == 'terminal'
+        $stderr.puts "ui: #{@ui}"
         line = @ui.readline prompt
       end
 
