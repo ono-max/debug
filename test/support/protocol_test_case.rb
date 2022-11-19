@@ -400,7 +400,7 @@ module DEBUGGER__
         sleep 0.001 until @remote_info.debuggee_backlog.join.include? 'Connected'
       end
 
-      sleep 1
+      # sleep 1
 
       @web_sock = WebSocketClient.new sock
       @web_sock.handshake @remote_info.port, '/'

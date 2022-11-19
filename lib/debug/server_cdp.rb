@@ -234,6 +234,7 @@ module DEBUGGER__
       def handshake
         req = @sock.readpartial 4096
         show_protocol '>', req
+        sleep 5
 
         if req.match /^Sec-WebSocket-Key: (.*)\r\n/
           accept = Base64.strict_encode64 Digest::SHA1.digest "#{$1}258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
