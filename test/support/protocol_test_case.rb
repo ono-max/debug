@@ -599,7 +599,7 @@ module DEBUGGER__
     end
 
     def find_response key, target, direction
-      Timeout.timeout(TIMEOUT_SEC) do
+      Timeout.timeout(20) do
         loop do
           res = @queue.pop
           str = JSON.dump(res)
