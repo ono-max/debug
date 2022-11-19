@@ -400,6 +400,7 @@ module DEBUGGER__
           @ui.puts "(rdbg:#{@preset_command.source}) #{line}"
         end
       else
+        sleep 2
         @ui.puts "INTERNAL_INFO: #{JSON.generate(@internal_info)}" if ENV['RUBY_DEBUG_TEST_UI'] == 'terminal'
         line = @ui.readline prompt
       end

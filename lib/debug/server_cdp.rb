@@ -183,6 +183,7 @@ module DEBUGGER__
           webSocketDebuggerUrl: "ws://#{addr}/#{@uuid}"
         }]
         send_http_res body
+        sleep 5
         raise UI_ServerBase::RetryConnection
 
       when /^GET\s\/(\w{8}-\w{4}-\w{4}-\w{4}-\w{12})\sHTTP\/1.1/
