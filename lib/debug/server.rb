@@ -280,8 +280,10 @@ module DEBUGGER__
     def sock skip: false
       $stderr.puts caller
       if s = @sock         # already connection
+        $stderr.puts "already_connected, #{skip}"
         # ok
       elsif skip == true   # skip process
+        $stderr.puts "already_connected2, #{skip}"
         no_sock = true
         r = @accept_m.synchronize do
           if @sock
@@ -292,6 +294,7 @@ module DEBUGGER__
         end
         return r if no_sock
       else                 # wait for connection
+        $stderr.puts "already_connected3, #{skip}"
         until s = @sock
           @accept_m.synchronize{
             unless @sock
