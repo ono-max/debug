@@ -388,6 +388,7 @@ module DEBUGGER__
 
     def wait_command
       if @preset_command
+        $stderr.puts :preset_command
         if @preset_command.commands.empty?
           if @preset_command.auto_continue
             @preset_command = nil
@@ -403,6 +404,7 @@ module DEBUGGER__
           @ui.puts "(rdbg:#{@preset_command.source}) #{line}"
         end
       else
+        $stderr.puts :preset_command2
         @ui.puts "INTERNAL_INFO: #{JSON.generate(@internal_info)}" if ENV['RUBY_DEBUG_TEST_UI'] == 'terminal'
         line = @ui.readline prompt
       end
