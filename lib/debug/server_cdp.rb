@@ -651,6 +651,7 @@ module DEBUGGER__
     end
 
     def sock skip: false
+      $stderr.puts :sock_cdp_called
       yield $stderr
     end
 
