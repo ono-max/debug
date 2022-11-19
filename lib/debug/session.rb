@@ -219,6 +219,7 @@ module DEBUGGER__
 
     def session_server_main
       while evt = pop_event
+        $stderr.puts "evt: #{evt}"
         process_event evt
       end
     ensure
