@@ -438,6 +438,12 @@ module DEBUGGER__
       INITIALIZE_CDP_MSGS.each{|msg| send(**msg)}
       res = find_response :method, 'Debugger.paused', 'C<D'
       @crt_frames = res.dig(:params, :callFrames)
+    rescue Exception => e
+      $stderr.puts e
+      $stderr.puts "thread status: #{@reader_thread.status}"
+      p @remote_info.debuggee_backlog.join
+      p @backlog
+      raise
     end
 
     JAVASCRIPT_TYPE_TO_CLASS_MAPS = {
