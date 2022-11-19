@@ -629,6 +629,7 @@ module DEBUGGER__
     ## Called by the SESSION thread
 
     def readline prompt
+      $stderr.puts :readline_cdp_called
       return 'c' unless @q_msg
 
       @q_msg.pop || 'kill!'
