@@ -318,6 +318,7 @@ module DEBUGGER__
       @queue = Queue.new
       @backlog = []
 
+      ENV['RUBY_DEBUG_TEST_ATTACHING'] = 'true'
       attach_to_cdp_server
       scenario.call
 

@@ -401,6 +401,7 @@ module DEBUGGER__
         end
       else
         @ui.puts "INTERNAL_INFO: #{JSON.generate(@internal_info)}" if ENV['RUBY_DEBUG_TEST_UI'] == 'terminal'
+        sleep 3 if ENV['RUBY_DEBUG_TEST_ATTACHING']
         line = @ui.readline prompt
       end
 
