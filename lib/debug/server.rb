@@ -355,6 +355,8 @@ module DEBUGGER__
         }
       end || 'continue')
 
+      $stderr.puts "readline #{input}"
+
       if input.is_a?(String)
         input.strip
       else
