@@ -15,9 +15,8 @@ on:
 
 jobs:
   test:
-
     runs-on: macos-latest
-    timeout-minutes: 720
+    timeout-minutes: 3600
     strategy:
       fail-fast: false
       matrix:
