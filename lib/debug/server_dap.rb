@@ -208,7 +208,7 @@ module DEBUGGER__
       WELCOME
     end
 
-    def send **kw
+    def write **kw
       if sock = @sock
         kw[:seq] = @seq += 1
         str = JSON.dump(kw)
@@ -219,13 +219,13 @@ module DEBUGGER__
 
     def send_response req, success: true, message: nil, **kw
       if kw.empty?
-        send type: 'response',
+        write type: 'response',
              command: req['command'],
              request_seq: req['seq'],
              success: success,
              message: message || (success ? 'Success' : 'Failed')
       else
-        send type: 'response',
+        write type: 'response',
              command: req['command'],
              request_seq: req['seq'],
              success: success,
@@ -236,9 +236,9 @@ module DEBUGGER__
 
     def send_event name, **kw
       if kw.empty?
-        send type: 'event', event: name
+        write type: 'event', event: name
       else
-        send type: 'event', event: name, body: kw
+        write type: 'event', event: name, body: kw
       end
     end
 
@@ -463,6 +463,32 @@ module DEBUGGER__
       send_event :terminated unless @sock.closed?
     end
 
+    def request_rdbgInspectorExecLogs req
+      @q_msg << req
+    end
+
+    def request_rdbgInspectorExecLogsChild req
+      @q_msg << req
+    end
+
+    def request_rdbgInspectorStartRecord req
+      @q_msg << 'record on'
+    end
+
+    def request_rdbgInspectorStopRecord req
+      @q_msg << 'record off'
+    end
+
+    def request_rdbgInspectorStepInto req
+      times =  req.dig('arguments', 'times')
+      @q_msg << "s #{times}"
+    end
+
+    def request_rdbgInspectorStepBack req
+      times =  req.dig('arguments', 'times')
+      @q_msg << "step back #{times}"
+    end
+
     ## called by the SESSION thread
 
     def respond req, res
@@ -491,7 +517,8 @@ module DEBUGGER__
                      }
         end
       when :suspend_bp
-        _i, bp, tid = *args
+        _i, bp, tid, rec = *args
+        send_records tid, rec
         if bp.kind_of?(CatchBreakpoint)
           reason = 'exception'
           text = bp.description
@@ -506,16 +533,24 @@ module DEBUGGER__
                               threadId: tid,
                               allThreadsStopped: true
       when :suspend_trap
-        _sig, tid = *args
+        _sig, tid, rec = *args
+        send_records tid, rec
         send_event 'stopped', reason: 'pause',
                               threadId: tid,
                               allThreadsStopped: true
       when :suspended
-        tid, = *args
+        tid, rec  = *args
+        send_records tid, rec
         send_event 'stopped', reason: 'step',
                               threadId: tid,
                               allThreadsStopped: true
       end
+    end
+
+    def send_records tid, recorder
+      return if recorder.nil?
+
+      send_event 'execLogsUpdated', threadId: tid
     end
   end
 
@@ -650,6 +685,14 @@ module DEBUGGER__
         else
           fail_response req
         end
+
+      when 'rdbgInspectorExecLogs', 'rdbgInspectorExecLogsChild'
+        tid = req.dig('arguments', 'threadId')
+        if tc = find_waiting_tc(tid)
+          tc << [:dap, req['command'].to_sym, req]
+        else
+          fail_response req
+        end
       else
         raise "Unknown DAP request: #{req.inspect}"
       end
@@ -702,6 +745,14 @@ module DEBUGGER__
         end
       when :completions
         @ui.respond req, result
+
+      when :rdbgInspectorExecLogs, :rdbgInspectorExecLogsChild
+        message = result.delete :message
+        if message
+          @ui.respond req, success: false, message: message
+        else
+          @ui.respond req, result
+        end
       else
         raise "unsupported: #{args.inspect}"
       end
@@ -963,6 +1014,62 @@ module DEBUGGER__
           }
         }
 
+      when :rdbgInspectorExecLogsChild
+        index = req.dig('arguments', 'index')
+
+        locs = []
+        if @exec_logs[index]
+          log_index = @recorder.log_index
+          locs = @exec_logs[index][:locations]
+        else
+          message = "Error: can not find the execution logs from the specified index"
+        end
+
+        event! :dap_result, :rdbgInspectorExecLogsChild, req, locations: locs, logIndex: log_index, message: message
+      when :rdbgInspectorExecLogs
+        message = nil
+        frames = []
+        if @recorder.nil?
+          message = "Error: can not find the execution logs from the specified thread"
+        else
+          @exec_logs.clear
+
+          prev_frame = {} # {locations => [], :name => ..., :depth => ..., :args => []}
+          log_index = @recorder.log_index
+          @recorder.log.each_with_index{|frame, idx|
+            crt_frame = frame[0]
+            loc = {name: crt_frame.location_str, index: idx}
+            if crt_frame.name == prev_frame[:name]
+              prev_frame[:locations] << loc
+            else
+              unless prev_frame.empty?
+                @exec_logs << prev_frame.dup
+                prev_frame.clear
+              end
+              prev_frame[:locations] = [loc]
+              prev_frame[:name] = crt_frame.name
+              prev_frame[:depth] = crt_frame.frame_depth
+              prev_frame[:arguments] = crt_frame.get_args || []
+            end
+            if idx == log_index
+              prev_frame[:currentLocation] = true
+            end
+          }
+          unless prev_frame.empty?
+            @exec_logs << prev_frame.dup
+          end
+
+          frames = []
+          @exec_logs.each{|log|
+            frames << {
+              name: log[:name],
+              arguments: log[:arguments],
+              currentLocation: log[:currentLocation]
+            }
+          }
+        end
+
+        event! :dap_result, :rdbgInspectorExecLogs, req, frames: frames, message: message
       else
         raise "Unknown req: #{args.inspect}"
       end
