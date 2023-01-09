@@ -471,22 +471,8 @@ module DEBUGGER__
       @q_msg << req
     end
 
-    def request_rdbgInspectorStartRecord req
-      @q_msg << 'record on'
-    end
-
-    def request_rdbgInspectorStopRecord req
-      @q_msg << 'record off'
-    end
-
-    def request_rdbgInspectorStepInto req
-      times =  req.dig('arguments', 'times')
-      @q_msg << "s #{times}"
-    end
-
-    def request_rdbgInspectorStepBack req
-      times =  req.dig('arguments', 'times')
-      @q_msg << "step back #{times}"
+    def request_rdbgInspectorTraceLogs req
+      @q_msg << req
     end
 
     ## called by the SESSION thread
@@ -517,8 +503,8 @@ module DEBUGGER__
                      }
         end
       when :suspend_bp
-        _i, bp, tid, rec = *args
-        send_records tid, rec
+        _i, bp, tid, rec, ts = *args
+        notify_updated tid, rec, ts
         if bp.kind_of?(CatchBreakpoint)
           reason = 'exception'
           text = bp.description
@@ -533,24 +519,28 @@ module DEBUGGER__
                               threadId: tid,
                               allThreadsStopped: true
       when :suspend_trap
-        _sig, tid, rec = *args
-        send_records tid, rec
+        _sig, tid, rec, ts = *args
+        notify_updated tid, rec, ts
         send_event 'stopped', reason: 'pause',
                               threadId: tid,
                               allThreadsStopped: true
       when :suspended
-        tid, rec  = *args
-        send_records tid, rec
+        tid, rec, ts  = *args
+        notify_updated tid, rec, ts
         send_event 'stopped', reason: 'step',
                               threadId: tid,
                               allThreadsStopped: true
       end
     end
 
-    def send_records tid, recorder
-      return if recorder.nil?
+    def notify_updated tid, recorder, ts
+      unless recorder.nil?
+        send_event 'rdbgInspectorExecLogsUpdated', threadId: tid
+      end
 
-      send_event 'execLogsUpdated', threadId: tid
+      if ts.size > 0
+        send_event 'rdbgInspectorTraceLogsUpdated', threadId: tid
+      end
     end
   end
 
@@ -693,6 +683,14 @@ module DEBUGGER__
         else
           fail_response req
         end
+
+      when 'rdbgInspectorTraceLogs'
+        @logs = {}
+        @tracers.values.each{|t|
+          @logs[t.type] = t.log
+        }
+        @ui.respond req, @logs
+        return :retry
       else
         raise "Unknown DAP request: #{req.inspect}"
       end

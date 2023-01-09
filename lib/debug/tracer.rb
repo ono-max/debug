@@ -14,7 +14,7 @@ module DEBUGGER__
       end
     end
 
-    attr_reader :type, :key
+    attr_reader :type, :key, :log
 
     def initialize ui, pattern: nil, into: nil
       if /\ADEBUGGER__::(([A-Z][a-z]+?)[A-Z][a-z]+)/ =~ self.class.name
@@ -38,6 +38,8 @@ module DEBUGGER__
       end
 
       @key = [@type, @pattern, @into].freeze
+
+      @log = []
 
       enable
     end
@@ -76,6 +78,16 @@ module DEBUGGER__
     def out tp, msg = nil, depth = caller.size - 1
       location_str = colorize("#{FrameInfo.pretty_path(tp.path)}:#{tp.lineno}", [:GREEN])
       buff = "#{header(depth)}#{msg} at #{location_str}"
+
+      @log << {
+        label: msg,
+        threadId: Thread.current.instance_variable_get(:@__thread_client_id),
+        location: {
+          name: location_str,
+          path: tp.path,
+          line: tp.lineno
+        }
+      }
 
       if false # TODO: Ractor.main?
         ThreadClient.current.on_trace self.object_id, buff
