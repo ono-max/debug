@@ -80,7 +80,7 @@ module DEBUGGER__
       buff = "#{header(depth)}#{msg} at #{location_str}"
 
       @log << {
-        label: msg,
+        name: msg,
         threadId: Thread.current.instance_variable_get(:@__thread_client_id),
         location: {
           name: location_str,
