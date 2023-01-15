@@ -475,6 +475,10 @@ module DEBUGGER__
       @q_msg << req
     end
 
+    def request_rdbgInspectorTraceLogChildren req
+      @q_msg << req
+    end
+
     ## called by the SESSION thread
 
     def respond req, res
@@ -685,15 +689,65 @@ module DEBUGGER__
         end
 
       when 'rdbgInspectorTraceLogs'
-        @logs = {}
+        logs = {}
         @tracers.values.each{|t|
-          @logs[t.type] = t.log
+          logs[t.type] = get_root_nodes(t.log)
         }
-        @ui.respond req, @logs
+        @ui.respond req, logs
+        return :retry
+      when 'rdbgInspectorTraceLogChildren'
+        id = req.dig('arguments', 'id')
+        type = req.dig('arguments', 'type')
+        logs = []
+        @tracers.values.each{|t|
+          if t.type == type
+            logs = get_direct_children t.log, id
+          end
+        }
+        @ui.respond req, logs: logs
         return :retry
       else
         raise "Unknown DAP request: #{req.inspect}"
       end
+    end
+
+    def get_root_nodes logs
+      nodes = []
+      parent = {depth: Float::INFINITY}
+      logs.each_with_index{|log, idx|
+        log[:index] = idx
+        if log[:depth] <= parent[:depth]
+          parent = log
+          if has_child? logs, idx
+            log[:childReference] = idx
+          end
+          nodes << log
+        end
+      }
+      nodes
+    end
+
+    def has_child? logs, idx
+      root = logs[idx]
+      logs[idx+1] && logs[idx+1][:depth] > root[:depth]
+    end
+
+    def get_direct_children logs, idx
+      root = logs[idx]
+      nodes = []
+      parent = {depth: Float::INFINITY}
+      logs[idx+1..].each{|log|
+        return nodes if log[:depth] <= root[:depth]
+
+        if log[:depth] <= parent[:depth]
+          parent = log
+          if has_child? logs, log[:index]
+            log[:childReference] = log[:index]
+          end
+          nodes << log
+        end
+      }
+      nodes
     end
 
     def dap_event args
