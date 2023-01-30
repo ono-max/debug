@@ -471,11 +471,15 @@ module DEBUGGER__
       @q_msg << req
     end
 
-    def request_rdbgInspectorTraceLogs req
+    def request_rdbgInspectorTraceLogChildren req
       @q_msg << req
     end
 
-    def request_rdbgInspectorTraceLogChildren req
+    def request_rdbgInspectorTraceLogParent req
+      @q_msg << req
+    end
+
+    def request_rdbgInspectorTraceLogRoot req
       @q_msg << req
     end
 
@@ -542,9 +546,16 @@ module DEBUGGER__
         send_event 'rdbgInspectorExecLogsUpdated', threadId: tid
       end
 
-      if ts.size > 0
-        send_event 'rdbgInspectorTraceLogsUpdated', threadId: tid
-      end
+      types = {}
+      ts.values.each{|t|
+        types[t.type] = {size: t.log.size}
+      }
+      ts.values.each{|t|
+        t.log.each_with_index{|log, idx|
+          log[:index] = idx
+        }
+      }
+      send_event 'rdbgInspectorTraceLogsUpdated', **types
     end
   end
 
@@ -688,20 +699,40 @@ module DEBUGGER__
           fail_response req
         end
 
-      when 'rdbgInspectorTraceLogs'
-        logs = {}
-        @tracers.values.each{|t|
-          logs[t.type] = get_root_nodes(t.log)
-        }
-        @ui.respond req, logs
-        return :retry
       when 'rdbgInspectorTraceLogChildren'
-        id = req.dig('arguments', 'id')
+        id = req.dig('arguments', 'index')
         type = req.dig('arguments', 'type')
+        offset = req.dig('arguments', 'offset')
+        page_size = req.dig('arguments', 'pageSize')
         logs = []
         @tracers.values.each{|t|
           if t.type == type
-            logs = get_direct_children t.log, id
+            logs = get_direct_children t.log, id, offset, page_size
+          end
+        }
+        @ui.respond req, logs: logs
+        return :retry
+      when 'rdbgInspectorTraceLogParent'
+        id = req.dig('arguments', 'index')
+        type = req.dig('arguments', 'type')
+        offset = req.dig('arguments', 'offset')
+        page_size = req.dig('arguments', 'pageSize')
+        log = nil
+        @tracers.values.each{|t|
+          if t.type == type
+            log = get_direct_parent t.log, id, offset, page_size
+          end
+        }
+        @ui.respond req, log: log
+        return :retry
+      when 'rdbgInspectorTraceLogRoot'
+        offset = req.dig('arguments', 'offset')
+        page_size = req.dig('arguments', 'pageSize')
+        type = req.dig('arguments', 'type')
+        logs = nil
+        @tracers.values.each{|t|
+          if t.type == type
+            logs = get_root_nodes(t.log, offset, page_size)
           end
         }
         @ui.respond req, logs: logs
@@ -711,19 +742,20 @@ module DEBUGGER__
       end
     end
 
-    def get_root_nodes logs
+    def get_root_nodes logs, offset, page_size
       nodes = []
       parent = {depth: Float::INFINITY}
-      logs.each_with_index{|log, idx|
-        log[:index] = idx
-        if log[:depth] <= parent[:depth]
-          parent = log
-          if has_child? logs, idx
-            log[:childReference] = idx
+      if logs = logs[offset, page_size]
+        logs.each_with_index{|log, idx|
+          if log[:depth] <= parent[:depth]
+            parent = log
+            if has_child? logs, idx
+              log[:hasChild] = true
+            end
+            nodes << log
           end
-          nodes << log
-        end
-      }
+        }
+      end
       nodes
     end
 
@@ -732,22 +764,45 @@ module DEBUGGER__
       logs[idx+1] && logs[idx+1][:depth] > root[:depth]
     end
 
-    def get_direct_children logs, idx
-      root = logs[idx]
+    def get_direct_children logs, root_idx, offset, page_size
+      root = logs[root_idx]
       nodes = []
       parent = {depth: Float::INFINITY}
-      logs[idx+1..].each{|log|
-        return nodes if log[:depth] <= root[:depth]
-
-        if log[:depth] <= parent[:depth]
-          parent = log
-          if has_child? logs, log[:index]
-            log[:childReference] = log[:index]
+      if logs = logs[offset, page_size]
+        logs.each_with_index{|log, idx|
+          if root_idx >= offset+idx
+            next
           end
-          nodes << log
-        end
-      }
+
+          if log[:depth] <= root[:depth]
+            return nodes
+          end
+  
+          if log[:depth] <= parent[:depth]
+            parent = log
+            if has_child? logs, idx
+              log[:hasChild] = true
+            end
+            nodes << log
+          end
+        }
+      end
       nodes
+    end
+
+    def get_direct_parent logs, chil_idx, offset, page_size
+      child = logs[chil_idx]
+      if logs = logs[offset, page_size]
+        logs.each_with_index.reverse_each{|log, idx|
+          if chil_idx <= offset + idx
+            next
+          end
+          if log[:depth] < child[:depth]
+            return log
+          end
+        }
+      end
+      nil
     end
 
     def dap_event args
