@@ -476,7 +476,7 @@ module DEBUGGER__
       @q_msg << req
     end
 
-		def request_rdbgInspectorTraceLogs req
+    def request_rdbgInspectorTraceLogs req
       @q_msg << req
     end
 
