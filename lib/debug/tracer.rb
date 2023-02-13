@@ -14,7 +14,7 @@ module DEBUGGER__
       end
     end
 
-    attr_reader :type, :key, :log
+    attr_reader :type, :key
 
     def initialize ui, pattern: nil, into: nil
       if /\ADEBUGGER__::(([A-Z][a-z]+?)[A-Z][a-z]+)/ =~ self.class.name
@@ -151,7 +151,17 @@ module DEBUGGER__
   class DapTracer < Tracer
     def initialize ui, pattern: nil, into: nil
       super
-      @log = []
+      @prev = []
+      @cur = []
+    end
+
+    def log
+      result = @cur
+      prev = @prev[@cur.size..-1]
+      unless prev.nil?
+        result.concat(prev)
+      end
+      result
     end
 
     def setup
@@ -193,10 +203,19 @@ module DEBUGGER__
       location_str = colorize("#{FrameInfo.pretty_path(tp.path)}:#{tp.lineno}", [:GREEN])
       buff = "#{header(depth)}#{msg} at #{location_str}"
 
-      if @log.size > 4000
-        @log.shift
+      if @prev.size == 4000
+        if @cur.size == 4000
+          @prev = @cur
+          @cur = []
+        end
+        @cur << get_trace_log(depth, msg, location_str, tp)
+      else
+        @prev << get_trace_log(depth, msg, location_str, tp)
       end
-      @log << {
+    end
+
+    def get_trace_log depth, msg, location_str, tp
+      {
         depth: depth,
         name: msg,
         threadId: Thread.current.instance_variable_get(:@__thread_client_id),
