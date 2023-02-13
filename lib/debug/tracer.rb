@@ -193,7 +193,6 @@ module DEBUGGER__
       location_str = colorize("#{FrameInfo.pretty_path(tp.path)}:#{tp.lineno}", [:GREEN])
       buff = "#{header(depth)}#{msg} at #{location_str}"
 
-      @prev 
       if @log.size > 4000
         @log.shift
       end
