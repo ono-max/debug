@@ -696,7 +696,7 @@ module DEBUGGER__
           fail_response req
         end
 
-			when 'rdbgInspectorTraceLogs'
+      when 'rdbgInspectorTraceLogs'
         type = req.dig('arguments', 'type') || 'dap'
         logs = nil
         @tracers.values.each{|t|
