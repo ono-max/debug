@@ -39,8 +39,6 @@ module DEBUGGER__
 
       @key = [@type, @pattern, @into].freeze
 
-      @log = []
-
       enable
     end
 
@@ -78,17 +76,6 @@ module DEBUGGER__
     def out tp, msg = nil, depth = caller.size - 1
       location_str = colorize("#{FrameInfo.pretty_path(tp.path)}:#{tp.lineno}", [:GREEN])
       buff = "#{header(depth)}#{msg} at #{location_str}"
-
-      @log << {
-        depth: depth,
-        name: msg,
-        threadId: Thread.current.instance_variable_get(:@__thread_client_id),
-        location: {
-          name: location_str,
-          path: tp.path,
-          line: tp.lineno
-        }
-      }
 
       if false # TODO: Ractor.main?
         ThreadClient.current.on_trace self.object_id, buff
@@ -158,6 +145,68 @@ module DEBUGGER__
 
     def skip_with_pattern?(tp)
       super && !tp.method_id&.match?(@pattern)
+    end
+  end
+
+  class DapTracer < Tracer
+    def initialize ui, pattern: nil, into: nil
+      super
+      @log = []
+    end
+
+    def setup
+      @tracer = TracePoint.new(:a_call, :a_return, :line){|tp|
+        next if skip?(tp)
+
+        depth = caller.size
+
+        call_identifier_str =
+          if tp.defined_class
+            minfo(tp)
+          else
+            "block"
+          end
+
+        call_identifier_str = colorize_blue(call_identifier_str)
+
+        case tp.event
+        when :call, :c_call, :b_call
+          depth += 1 if tp.event == :c_call
+          sp = ' ' * depth
+          out tp, ">#{sp}#{call_identifier_str}", depth
+        when :return, :c_return, :b_return
+          depth += 1 if tp.event == :c_return
+          sp = ' ' * depth
+          return_str = colorize_magenta(DEBUGGER__.safe_inspect(tp.return_value, short: true))
+          out tp, "<#{sp}#{call_identifier_str} #=> #{return_str}", depth
+        else
+          out tp
+        end
+      }
+    end
+
+    def skip_with_pattern?(tp)
+      super && !tp.method_id&.match?(@pattern)
+    end
+
+    def out tp, msg = nil, depth = caller.size - 1
+      location_str = colorize("#{FrameInfo.pretty_path(tp.path)}:#{tp.lineno}", [:GREEN])
+      buff = "#{header(depth)}#{msg} at #{location_str}"
+
+      @prev 
+      if @log.size > 4000
+        @log.shift
+      end
+      @log << {
+        depth: depth,
+        name: msg,
+        threadId: Thread.current.instance_variable_get(:@__thread_client_id),
+        location: {
+          name: location_str,
+          path: tp.path,
+          line: tp.lineno
+        }
+      }
     end
   end
 
