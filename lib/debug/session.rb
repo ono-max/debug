@@ -285,16 +285,16 @@ module DEBUGGER__
         when :breakpoint
           bp, i = bp_index ev_args[1]
           clean_bps unless bp
-          @ui.event :suspend_bp, i, bp, @tc.id, @tracers
+          @ui.event :suspend_bp, i, bp, @tc.id
         when :trap
-          @ui.event :suspend_trap, sig = ev_args[1], @tc.id, @tracers
+          @ui.event :suspend_trap, sig = ev_args[1], @tc.id
 
           if sig == :SIGINT && (@intercepted_sigint_cmd.kind_of?(Proc) || @intercepted_sigint_cmd.kind_of?(String))
             @ui.puts "#{@intercepted_sigint_cmd.inspect} is registered as SIGINT handler."
             @ui.puts "`sigint` command execute it."
           end
         else
-          @ui.event :suspended, @tc.id, @tracers
+          @ui.event :suspended, @tc.id
         end
 
         if @displays.empty?

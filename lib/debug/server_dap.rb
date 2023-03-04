@@ -495,8 +495,7 @@ module DEBUGGER__
                      }
         end
       when :suspend_bp
-        _i, bp, tid, ts = *args
-        notify_updated tid, ts
+        _i, bp, tid = *args
         if bp.kind_of?(CatchBreakpoint)
           reason = 'exception'
           text = bp.description
@@ -511,27 +510,16 @@ module DEBUGGER__
                               threadId: tid,
                               allThreadsStopped: true
       when :suspend_trap
-        _sig, tid, ts = *args
-        notify_updated tid, ts
+        _sig, tid = *args
         send_event 'stopped', reason: 'pause',
                               threadId: tid,
                               allThreadsStopped: true
       when :suspended
-        tid, ts  = *args
-        notify_updated tid, ts
+        tid = *args
         send_event 'stopped', reason: 'step',
                               threadId: tid,
                               allThreadsStopped: true
       end
-    end
-
-    def notify_updated tid, ts
-      ts.values.each{|t|
-        if t.type == 'dap'
-          send_event 'rdbgTraceInspector', command: 'updated'
-          break
-        end
-      }
     end
   end
 
@@ -666,51 +654,56 @@ module DEBUGGER__
         else
           fail_response req
         end
-
-      when 'rdbgTraceInspector'
-        cmd = req.dig('arguments', 'command')
-        case cmd
-        when 'enable'
-          events = req.dig('arguments', 'events')
-          evts = []
-          events.each{|evt|
-            case evt
-            when 'line'
-              evts << :line
-            when 'call'
-              evts << :call
-              evts << :c_call
-              evts << :b_call
-            when 'return'
-              evts << :return
-              evts << :c_return
-              evts << :b_return
-            end
-          }
-          add_tracer DapTracer.new @ui, evts
-          @ui.respond req, {}
-        when 'disable'
-          @tracers.values.each{|t|
-            if t.type == 'dap'
-              t.disable
-              break
-            end
-          }
-          @ui.respond req, {}
-        when 'logs'
-          logs = nil
-          @tracers.values.each{|t|
-            if t.type == 'dap'
-              logs = t.log
-              break
-            end
-          }
-          @ui.respond req, logs: logs
-        end
-        return :retry
       else
-        raise "Unknown DAP request: #{req.inspect}"
+        if respond_to? mid = "request_#{req['command']}"
+          __send__ mid, req
+        else
+          raise "Unknown request: #{req.inspect}"
+        end
       end
+    end
+
+    def request_rdbgTraceInspector(req)
+      cmd = req.dig('arguments', 'command')
+      case cmd
+      when 'enable'
+        events = req.dig('arguments', 'events')
+        evts = []
+        events.each{|evt|
+          case evt
+          when 'line'
+            evts << :line
+          when 'call'
+            evts << :call
+            evts << :c_call
+            evts << :b_call
+          when 'return'
+            evts << :return
+            evts << :c_return
+            evts << :b_return
+          end
+        }
+        add_tracer DapTracer.new @ui, evts
+        @ui.respond req, {}
+      when 'disable'
+        @tracers.values.each{|t|
+          if t.type == 'dap'
+            t.disable
+            break
+          end
+        }
+        @ui.respond req, {}
+      when 'logs'
+        logs = nil
+        @tracers.values.each{|t|
+          if t.type == 'dap'
+            logs = t.log
+            break
+          end
+        }
+        @ui.respond req, logs: logs
+      end
+      return :retry
     end
 
     def dap_event args
