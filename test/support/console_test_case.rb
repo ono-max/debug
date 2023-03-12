@@ -196,17 +196,19 @@ module DEBUGGER__
         rescue Timeout::Error
           assert_block(create_message("TIMEOUT ERROR (#{TIMEOUT_SEC} sec)", test_info)) { false }
         rescue Test::Unit::AssertionFailedError
-          is_fail = true
+          test_info.is_assertion_failed = true
           raise
         ensure
-          kill_remote_debuggee(test_info, failed: is_fail == true)
+          kill_remote_debuggee test_info
           # kill debug console process
           read.close
           write.close
-          if is_fail == true
+          if test_info.is_assertion_failed
             kill_safely pid, :debugger, test_info, sec: 2
+          else
+            kill_safely pid, :debugger, test_info
           end
-          if name = test_info.failed_process && !is_fail
+          if name = test_info.failed_process && !test_info.is_assertion_failed
             flunk(create_message("Expected the #{name} program to finish", test_info))
           end
         end

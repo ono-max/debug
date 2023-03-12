@@ -14,7 +14,7 @@ require_relative 'assertions'
 module DEBUGGER__
   class TestCase < Test::Unit::TestCase
     TestInfo = Struct.new(:queue, :mode, :prompt_pattern, :remote_info,
-                          :backlog, :last_backlog, :internal_info, :failed_process)
+                          :backlog, :last_backlog, :internal_info, :failed_process, :is_assertion_failed)
 
     RemoteInfo = Struct.new(:r, :w, :pid, :sock_path, :port, :reader_thread, :debuggee_backlog)
 
@@ -141,10 +141,10 @@ module DEBUGGER__
       end
     end
 
-    def kill_remote_debuggee test_info, failed: false
+    def kill_remote_debuggee test_info
       return unless r = test_info.remote_info
 
-      if failed
+      if test_info.is_assertion_failed
         kill_safely r.pid, :remote, test_info, sec: 2
       else
         kill_safely r.pid, :remote, test_info
