@@ -414,6 +414,7 @@ module DEBUGGER__
 
       ## control
       when 'continue'
+        @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         @q_msg << 'c'
         send_response req, allThreadsContinued: true
       when 'next'
@@ -530,6 +531,11 @@ module DEBUGGER__
         else
           reason = 'breakpoint'
           text = bp ? bp.description : 'temporary bp'
+        end
+
+        if @start_time
+          @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          $stderr.puts "Time: #{@end_time - @start_time}"
         end
 
         send_event 'stopped', reason: reason,
