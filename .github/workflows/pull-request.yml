@@ -6,9 +6,6 @@ on:
 jobs:
   update-dep:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v3
       - name: Changes
@@ -17,5 +14,6 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{secrets.GITHUB_TOKEN}}
           branch-suffix: random
+        env:
+          GITHUB_TOKEN: ${{secrets.PAT}}
