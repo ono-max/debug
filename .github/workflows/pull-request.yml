@@ -1,0 +1,19 @@
+name: Create PR
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '30 * * * *'
+jobs:
+  update-dep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Changes
+        run: |
+          echo "foo" >> README.md
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          branch-suffix: random
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
