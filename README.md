@@ -931,7 +931,7 @@ NOTE
 Bug reports and pull requests are welcome on GitHub at https://github.com/ruby/debug.
 This debugger is not mature so your feedback will help us.
 
-Please also check the [contributing guideline](/CONTRIBUTING.md).
+Please also check the [contributing guideline](/CONTRIBUTING.md)
 
 # Acknowledgement
 
