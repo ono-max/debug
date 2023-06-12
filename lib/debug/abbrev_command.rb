@@ -4,7 +4,7 @@ module DEBUGGER__
     class TrieNode
       def initialize
         @children = {}
-        @types = {} # set
+        @types = {} # se
       end
 
       def append c, type
