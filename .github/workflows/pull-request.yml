@@ -13,7 +13,5 @@ jobs:
           echo "foo" >> README.md
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
-        with:
-          branch-suffix: random
         env:
           GITHUB_TOKEN: ${{secrets.PAT}}
